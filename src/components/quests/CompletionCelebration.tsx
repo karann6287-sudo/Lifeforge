@@ -7,10 +7,11 @@ import { cn } from "@/lib/utils";
 interface CompletionCelebrationProps {
   result: CompleteQuestResult | null;
   questTitle: string;
+  ownedQuantity: number | null;
   onClose: () => void;
 }
 
-export function CompletionCelebration({ result, questTitle, onClose }: CompletionCelebrationProps) {
+export function CompletionCelebration({ result, questTitle, ownedQuantity, onClose }: CompletionCelebrationProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -78,6 +79,28 @@ export function CompletionCelebration({ result, questTitle, onClose }: Completio
             <dd className="text-xl font-bold">+{result.attribute_amount}</dd>
           </div>
         </dl>
+
+        {result.item_awarded_id && (
+          <div
+            role="status"
+            aria-label={`Item awarded: ${result.item_awarded_name}, quantity ${result.item_awarded_quantity}`}
+            className="mx-auto mt-4 max-w-xs rounded-xl border border-primary/40 bg-primary/10 p-4 quest-reward-pop motion-reduce:animate-none"
+          >
+            <p aria-hidden="true" className="text-4xl">🎁</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-primary">Item found</p>
+            <p className="mt-1 font-bold">
+              {result.item_awarded_name} <span className="text-primary">×{result.item_awarded_quantity}</span>
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {ownedQuantity !== null ? (
+                <>Now ×{ownedQuantity} in your pack · </>
+              ) : null}
+              <a href="/inventory" className="underline hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
+                View pack
+              </a>
+            </p>
+          </div>
+        )}
 
         <p className="mt-4 text-sm text-muted-foreground" aria-live="polite">
           Streak: <span className="font-semibold text-foreground">{result.streak_at_completion} day{result.streak_at_completion === 1 ? "" : "s"}</span>

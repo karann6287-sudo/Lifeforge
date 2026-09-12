@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import { fetchUserInventory } from "@/lib/inventory";
 import type {
   CompleteQuestResult,
   QuestCategory,
@@ -45,7 +46,7 @@ export function QuestsClient({ initialQuests, categories, displayName, initialPr
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [celebration, setCelebration] = useState<{ result: CompleteQuestResult; title: string } | null>(null);
+  const [celebration, setCelebration] = useState<{ result: CompleteQuestResult; title: string; ownedQuantity: number | null } | null>(null);
 
   const refreshAll = useCallback(async () => {
     setRefreshing(true);
@@ -201,8 +202,19 @@ export function QuestsClient({ initialQuests, categories, displayName, initialPr
         throw new Error(row.error_message ?? "This quest cannot be completed.");
       }
       // Server confirmed — now reveal rewards and refresh visible state.
-      setCelebration({ result: row, title: quest.title });
       await refresh();
+      // Refresh inventory (best effort): proves the granted row landed and
+      // shows the true owned total. Never blocks the celebration.
+      let owned: number | null = null;
+      if (row.item_awarded_id) {
+        try {
+          const inv = await fetchUserInventory(supabase);
+          owned = inv.items.find((i) => i.item_id === row.item_awarded_id)?.quantity ?? null;
+        } catch {
+          owned = null;
+        }
+      }
+      setCelebration({ result: row, title: quest.title, ownedQuantity: owned });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not complete your quest.";
       setBannerError(message);
@@ -303,6 +315,7 @@ export function QuestsClient({ initialQuests, categories, displayName, initialPr
         <CompletionCelebration
           result={celebration.result}
           questTitle={celebration.title}
+          ownedQuantity={celebration.ownedQuantity}
           onClose={() => setCelebration(null)}
         />
       )}

@@ -366,7 +366,10 @@ RETURNS TABLE(
   new_xp BIGINT,
   new_gold BIGINT,
   streak_at_completion INTEGER,
-  error_message TEXT
+  error_message TEXT,
+  item_awarded_id UUID,
+  item_awarded_name TEXT,
+  item_awarded_quantity INTEGER
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -382,10 +385,15 @@ DECLARE
   v_streak INTEGER;
   v_last_active DATE;
   v_today DATE := CURRENT_DATE;
+  v_drop_chance NUMERIC := 0;
+  v_item public.items%ROWTYPE;
+  v_item_id UUID := NULL;
+  v_item_name TEXT := NULL;
+  v_item_qty INTEGER := NULL;
 BEGIN
   -- 1. Get authenticated user from session
   IF auth.uid() IS NULL THEN
-    RETURN QUERY SELECT false, 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 'Not authenticated';
+    RETURN QUERY SELECT false, 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 'Not authenticated', NULL::UUID, NULL::TEXT, NULL::INTEGER;
   END IF;
 
   -- 2. Load quest with FOR UPDATE
@@ -395,17 +403,17 @@ BEGIN
   FOR UPDATE;
 
   IF NOT FOUND THEN
-    RETURN QUERY SELECT false, 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 'Quest not found';
+    RETURN QUERY SELECT false, 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 'Quest not found', NULL::UUID, NULL::TEXT, NULL::INTEGER;
   END IF;
 
   -- 3. Verify ownership
   IF v_quest.user_id <> auth.uid() THEN
-    RETURN QUERY SELECT false, 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 'Quest does not belong to user';
+    RETURN QUERY SELECT false, 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 'Quest does not belong to user', NULL::UUID, NULL::TEXT, NULL::INTEGER;
   END IF;
 
   -- 4. Verify quest is completable
   IF v_quest.status <> 'active' AND v_quest.status <> 'pending' THEN
-    RETURN QUERY SELECT false, 0, 0, '', 0, 0, 0, 0, 0, 0, 0, format('Quest cannot be completed (status: %s)', v_quest.status);
+    RETURN QUERY SELECT false, 0, 0, '', 0, 0, 0, 0, 0, 0, 0, format('Quest cannot be completed (status: %s)', v_quest.status), NULL::UUID, NULL::TEXT, NULL::INTEGER;
   END IF;
 
   -- 5. Load category for attribute mapping
@@ -414,7 +422,7 @@ BEGIN
   WHERE id = v_quest.category_id;
 
   IF NOT FOUND THEN
-    RETURN QUERY SELECT false, 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 'Quest category not found';
+    RETURN QUERY SELECT false, 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 'Quest category not found', NULL::UUID, NULL::TEXT, NULL::INTEGER;
   END IF;
 
   -- 6. Load user profile with FOR UPDATE
@@ -424,7 +432,7 @@ BEGIN
   FOR UPDATE;
 
   IF NOT FOUND THEN
-    RETURN QUERY SELECT false, 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 'Profile not found';
+    RETURN QUERY SELECT false, 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 'Profile not found', NULL::UUID, NULL::TEXT, NULL::INTEGER;
   END IF;
 
   -- 7. Calculate streak
@@ -441,12 +449,33 @@ BEGIN
     v_streak := 1;
   END IF;
 
-  -- 8. Read TRUSTED reward values from quest record (computed at creation)
+  -- 8. Server-decided item drop (difficulty-based chance, server-picked item).
+  -- The client never supplies item_id, quantity, or drop chance.
+  CASE v_quest.difficulty
+    WHEN 'medium' THEN v_drop_chance := 0.20;
+    WHEN 'hard'   THEN v_drop_chance := 0.40;
+    WHEN 'epic'   THEN v_drop_chance := 0.70;
+    ELSE v_drop_chance := 0;
+  END CASE;
+
+  IF v_drop_chance > 0 AND random() < v_drop_chance THEN
+    SELECT * INTO v_item FROM public.items ORDER BY random() LIMIT 1;
+    IF FOUND THEN
+      -- Internal grant: same transaction, so a grant failure rolls back
+      -- the entire completion (quest, XP, gold, attributes, streak, history).
+      PERFORM public.grant_item(auth.uid(), v_item.id, 1);
+      v_item_id := v_item.id;
+      v_item_name := v_item.name;
+      v_item_qty := 1;
+    END IF;
+  END IF;
+
+  -- 9. Read TRUSTED reward values from quest record (computed at creation)
   DECLARE
     v_final_xp INTEGER := v_quest.xp_reward;
     v_final_gold INTEGER := v_quest.gold_reward;
   BEGIN
-    -- 9. Non-linear leveling: XP required for level L = floor(100 * L^1.5)
+    -- 10. Non-linear leveling: XP required for level L = floor(100 * L^1.5)
     v_new_xp := v_profile.xp + v_final_xp;
     v_new_level := v_profile.level;
 
@@ -459,7 +488,7 @@ BEGIN
       END IF;
     END LOOP;
 
-    -- 10. Atomic update: quest + profile + completion history
+    -- 11. Atomic update: quest + profile + completion history (item already granted above, same transaction)
     UPDATE public.quests
     SET
       status = 'completed',
@@ -481,7 +510,7 @@ BEGIN
       updated_at = NOW()
     WHERE id = auth.uid();
 
-    -- 11. Record completion history
+    -- 12. Record completion history
     INSERT INTO public.quest_completions (
       user_id, quest_id, xp_awarded, gold_awarded,
       attribute_gained, attribute_amount,
@@ -496,7 +525,7 @@ BEGIN
       v_streak
     );
 
-    -- 12. Return success with progression details
+    -- 13. Return success with progression details (including awarded item, if any)
     RETURN QUERY SELECT
       true,
       v_final_xp,
@@ -509,7 +538,10 @@ BEGIN
       v_new_xp,
       v_profile.gold + v_final_gold,
       v_streak,
-      NULL::TEXT;
+      NULL::TEXT,
+      v_item_id,
+      v_item_name,
+      v_item_qty;
   END;
 END;
 $$;
@@ -533,7 +565,134 @@ COMMENT ON TABLE public.quest_categories IS 'Trusted reference data mapping cate
 COMMENT ON TABLE public.quest_completions IS 'Immutable audit log of quest completions. Written only by complete_quest().';
 COMMENT ON FUNCTION public.create_quest(TEXT, TEXT, UUID, TEXT) IS 'Trusted quest creation. Accepts user-controlled fields; computes rewards from difficulty + category. SECURITY DEFINER to bypass column INSERT restrictions on reward columns and user_id.';
 COMMENT ON FUNCTION public.start_quest(UUID) IS 'Trusted quest start. Sets status=active and started_at=NOW(). SECURITY DEFINER to bypass column UPDATE restriction on status.';
-COMMENT ON FUNCTION public.complete_quest(UUID) IS 'Trusted quest completion. Accepts only quest_id; reads rewards from quest record. SECURITY DEFINER to bypass column UPDATE restrictions on profile progression columns and quest status.';
+COMMENT ON FUNCTION public.complete_quest(UUID) IS 'Trusted quest completion. Accepts only quest_id; reads rewards from quest record; rolls a server-decided difficulty-based item drop via grant_item() in the same transaction.';
 COMMENT ON COLUMN public.profiles.xp IS 'CUMULATIVE lifetime XP. Level derived from this via formula floor(100 * L^1.5).';
 COMMENT ON COLUMN public.quests.xp_reward IS 'Computed at creation by create_quest() from difficulty base * category multiplier. Not user-editable.';
 COMMENT ON COLUMN public.quests.gold_reward IS 'Computed at creation by create_quest() from difficulty base * category multiplier. Not user-editable.';
+
+-- ============================================================
+-- 15. ITEMS CATALOG (trusted reference data)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL UNIQUE,
+  description TEXT NOT NULL DEFAULT '',
+  rarity TEXT NOT NULL DEFAULT 'common'
+    CHECK (rarity IN ('common','uncommon','rare','epic','legendary')),
+  item_type TEXT NOT NULL
+    CHECK (item_type IN ('equipment','consumable','cosmetic')),
+  icon TEXT NOT NULL DEFAULT '✨',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.items ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can read items" ON public.items;
+CREATE POLICY "Anyone can read items"
+  ON public.items
+  FOR SELECT
+  USING (true);
+
+-- Catalog is read-only for authenticated users: no direct writes.
+REVOKE INSERT ON public.items FROM authenticated;
+REVOKE UPDATE ON public.items FROM authenticated;
+REVOKE DELETE ON public.items FROM authenticated;
+
+-- Seed catalog (definitions only — no ownership, no shop pricing yet)
+INSERT INTO public.items (name, description, rarity, item_type, icon) VALUES
+  ('Ember Potion', 'A warm draft for cold mornings. Restores resolve.', 'common', 'consumable', '🧪'),
+  ('Focus Tonic', 'A bitter brew that sharpens an afternoon of study.', 'uncommon', 'consumable', '⚗️'),
+  ('Iron Charm', 'A steadfast token carried by disciplined adventurers.', 'common', 'equipment', '🪙'),
+  ('Traveler''s Cloak', 'Weathered and proud. For those who show up daily.', 'uncommon', 'equipment', '🧥'),
+  ('Star Banner', 'A banner charting constellations of long-term goals.', 'rare', 'cosmetic', '🚩'),
+  ('Ember Crown', 'A crown for legendary deeds. Rarely bestowed.', 'epic', 'cosmetic', '👑')
+ON CONFLICT (name) DO NOTHING;
+
+-- ============================================================
+-- 16. USER INVENTORY (owned items)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.inventory_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  item_id UUID NOT NULL REFERENCES public.items(id) ON DELETE RESTRICT,
+  quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
+  acquired_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, item_id)
+);
+
+ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can read own inventory" ON public.inventory_items;
+CREATE POLICY "Users can read own inventory"
+  ON public.inventory_items
+  FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- No INSERT/UPDATE/DELETE for authenticated users — only grant_item() writes here.
+REVOKE INSERT ON public.inventory_items FROM authenticated;
+REVOKE UPDATE ON public.inventory_items FROM authenticated;
+REVOKE DELETE ON public.inventory_items FROM authenticated;
+
+-- ============================================================
+-- 17. TRUSTED ITEM GRANT FUNCTION (internal use only)
+-- ============================================================
+-- Grants an item to a user, upserting quantity on (user_id, item_id).
+-- SECURITY DEFINER with NO execute grant to authenticated/anon: it is NOT an
+-- RPC for browsers. Only the table owner, service_role, or other trusted
+-- SECURITY DEFINER functions (e.g. a future quest-reward hook inside
+-- complete_quest) can invoke it. This makes self-granting impossible from
+-- the client: there is no browser-callable path that mints items.
+CREATE OR REPLACE FUNCTION public.grant_item(
+  p_user_id UUID,
+  p_item_id UUID,
+  p_quantity INTEGER DEFAULT 1
+)
+RETURNS public.inventory_items
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_row public.inventory_items;
+BEGIN
+  IF p_user_id IS NULL THEN
+    RAISE EXCEPTION 'Unknown user';
+  END IF;
+
+  IF p_item_id IS NULL THEN
+    RAISE EXCEPTION 'Unknown item';
+  END IF;
+
+  IF p_quantity IS NULL OR p_quantity <= 0 THEN
+    RAISE EXCEPTION 'Quantity must be positive';
+  END IF;
+
+  PERFORM 1 FROM auth.users WHERE id = p_user_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Unknown user';
+  END IF;
+
+  PERFORM 1 FROM public.items WHERE id = p_item_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Unknown item';
+  END IF;
+
+  INSERT INTO public.inventory_items (user_id, item_id, quantity)
+  VALUES (p_user_id, p_item_id, p_quantity)
+  ON CONFLICT (user_id, item_id)
+  DO UPDATE SET quantity = public.inventory_items.quantity + EXCLUDED.quantity
+  RETURNING * INTO v_row;
+
+  RETURN v_row;
+END;
+$$;
+
+-- No EXECUTE grant to authenticated/anon: internal/database paths only.
+REVOKE EXECUTE ON FUNCTION public.grant_item(UUID, UUID, INTEGER) FROM PUBLIC;
+
+CREATE INDEX IF NOT EXISTS idx_inventory_items_user_id ON public.inventory_items(user_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_items_item_id ON public.inventory_items(item_id);
+
+COMMENT ON TABLE public.items IS 'Trusted item catalog. Read-only for authenticated users; definitions only, no pricing yet.';
+COMMENT ON TABLE public.inventory_items IS 'User-owned items. Read-only for authenticated users; only grant_item() (internal, no client execute grant) can write.';
+COMMENT ON FUNCTION public.grant_item(UUID, UUID, INTEGER) IS 'Internal item grant with upsert on (user_id, item_id). No EXECUTE grant to client roles — not browser-callable.';

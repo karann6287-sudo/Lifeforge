@@ -87,6 +87,9 @@ export interface CompleteQuestResult {
   new_gold: number;
   streak_at_completion: number;
   error_message: string | null;
+  item_awarded_id: string | null;
+  item_awarded_name: string | null;
+  item_awarded_quantity: number | null;
 }
 
 export interface QuestCompletion {
@@ -106,14 +109,26 @@ export interface QuestCompletion {
   quests?: { title: string } | null;
 }
 
+export type ItemRarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
+export type ItemType = "equipment" | "consumable" | "cosmetic";
+
+export interface Item {
+  id: string;
+  name: string;
+  description: string;
+  rarity: ItemRarity;
+  item_type: ItemType;
+  icon: string;
+  created_at: string;
+}
+
 export interface InventoryItem {
   id: string;
   user_id: string;
-  item_type: "consumable" | "equipment" | "cosmetic" | "currency";
-  item_key: string;
+  item_id: string;
   quantity: number;
-  metadata: Record<string, unknown>;
   acquired_at: string;
+  items: Item | null;
 }
 
 export interface PlayerState {
