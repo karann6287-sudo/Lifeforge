@@ -6,6 +6,7 @@ import { QuestCard } from "./QuestCard";
 interface QuestListProps {
   quests: QuestWithCategory[];
   onStart: (id: string) => void;
+  onComplete: (quest: QuestWithCategory) => void;
   onEdit: (quest: QuestWithCategory) => void;
   onDelete: (quest: QuestWithCategory) => void;
   actionLoading: string | null;
@@ -37,8 +38,8 @@ function Section({
   );
 }
 
-export function QuestList({ quests, onStart, onEdit, onDelete, actionLoading }: QuestListProps) {
-  const handlers = { onStart, onEdit, onDelete, actionLoading };
+export function QuestList({ quests, onStart, onComplete, onEdit, onDelete, actionLoading }: QuestListProps) {
+  const handlers = { onStart, onComplete, onEdit, onDelete, actionLoading };
   const active = quests.filter((q) => q.status === "active");
   const pending = quests.filter((q) => q.status === "pending");
   const done = quests.filter((q) => q.status === "completed" || q.status === "failed");

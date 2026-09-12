@@ -3,17 +3,29 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import type { QuestCategory, QuestDifficulty, QuestWithCategory } from "@/types";
+import type {
+  CompleteQuestResult,
+  QuestCategory,
+  QuestCompletion,
+  QuestDifficulty,
+  QuestWithCategory,
+  UserProfile,
+} from "@/types";
 import { QuestList } from "./QuestList";
 import { CreateQuestDialog } from "./CreateQuestDialog";
 import { EditQuestDialog } from "./EditQuestDialog";
 import { DeleteQuestDialog } from "./DeleteQuestDialog";
+import { ProgressionHeader } from "./ProgressionHeader";
+import { CompletionCelebration } from "./CompletionCelebration";
+import { CompletionHistory } from "./CompletionHistory";
 import { cn } from "@/lib/utils";
 
 interface QuestsClientProps {
   initialQuests: QuestWithCategory[];
   categories: QuestCategory[];
   displayName: string;
+  initialProfile: UserProfile | null;
+  initialCompletions: QuestCompletion[];
 }
 
 type DialogState =
@@ -22,17 +34,20 @@ type DialogState =
   | { kind: "edit"; quest: QuestWithCategory }
   | { kind: "delete"; quest: QuestWithCategory };
 
-export function QuestsClient({ initialQuests, categories, displayName }: QuestsClientProps) {
+export function QuestsClient({ initialQuests, categories, displayName, initialProfile, initialCompletions }: QuestsClientProps) {
   const router = useRouter();
   const [quests, setQuests] = useState<QuestWithCategory[]>(initialQuests);
+  const [profile, setProfile] = useState<UserProfile | null>(initialProfile);
+  const [completions, setCompletions] = useState<QuestCompletion[]>(initialCompletions);
   const [dialog, setDialog] = useState<DialogState>({ kind: "none" });
   const [submitting, setSubmitting] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [celebration, setCelebration] = useState<{ result: CompleteQuestResult; title: string } | null>(null);
 
-  const refresh = useCallback(async () => {
+  const refreshAll = useCallback(async () => {
     setRefreshing(true);
     setBannerError(null);
     try {
@@ -42,18 +57,33 @@ export function QuestsClient({ initialQuests, categories, displayName }: QuestsC
         router.push("/login?redirect=/quests");
         return;
       }
-      const { data, error } = await supabase
-        .from("quests")
-        .select("*, quest_categories(id,name,attribute,xp_multiplier,gold_multiplier,created_at)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      setQuests((data ?? []) as QuestWithCategory[]);
+      const [questsRes, profileRes, completionsRes] = await Promise.all([
+        supabase
+          .from("quests")
+          .select("*, quest_categories(id,name,attribute,xp_multiplier,gold_multiplier,created_at)")
+          .order("created_at", { ascending: false }),
+        supabase.from("profiles").select("*").eq("id", user.id).single(),
+        supabase
+          .from("quest_completions")
+          .select("*, quests(title)")
+          .eq("user_id", user.id)
+          .order("completed_at", { ascending: false })
+          .limit(8),
+      ]);
+      if (questsRes.error) throw questsRes.error;
+      if (profileRes.error) throw profileRes.error;
+      if (completionsRes.error) throw completionsRes.error;
+      setQuests((questsRes.data ?? []) as QuestWithCategory[]);
+      setProfile(profileRes.data as UserProfile);
+      setCompletions((completionsRes.data ?? []) as QuestCompletion[]);
     } catch (err) {
       setBannerError(err instanceof Error ? err.message : "Could not reach the forge. Check your connection and retry.");
     } finally {
       setRefreshing(false);
     }
   }, [router]);
+
+  const refresh = refreshAll;
 
   const closeDialog = useCallback(() => {
     if (submitting || actionLoading) return;
@@ -147,6 +177,40 @@ export function QuestsClient({ initialQuests, categories, displayName }: QuestsC
     }
   }, [actionLoading, refresh]);
 
+  const handleComplete = useCallback(async (quest: QuestWithCategory) => {
+    // Guard duplicate clicks: one completion at a time per quest.
+    if (actionLoading) return;
+    setActionLoading(quest.id);
+    setBannerError(null);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push("/login?redirect=/quests");
+        return;
+      }
+      // Authoritative RPC only — client sends ONLY the quest ID.
+      // Never compute or submit XP, gold, attributes, streak, or level.
+      const { data, error } = await supabase.rpc("complete_quest", {
+        p_quest_id: quest.id,
+      });
+      if (error) throw error;
+      const row = (Array.isArray(data) ? data[0] : data) as CompleteQuestResult | undefined;
+      if (!row) throw new Error("The forge returned no verdict. Try again.");
+      if (!row.success) {
+        throw new Error(row.error_message ?? "This quest cannot be completed.");
+      }
+      // Server confirmed — now reveal rewards and refresh visible state.
+      setCelebration({ result: row, title: quest.title });
+      await refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not complete your quest.";
+      setBannerError(message);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [actionLoading, refresh, router]);
+
   const pendingCount = quests.filter((q) => q.status === "pending").length;
   const activeCount = quests.filter((q) => q.status === "active").length;
 
@@ -222,13 +286,26 @@ export function QuestsClient({ initialQuests, categories, displayName }: QuestsC
         </div>
       )}
 
+      <ProgressionHeader profile={profile} />
+
       <QuestList
         quests={quests}
         onStart={handleStart}
+        onComplete={handleComplete}
         onEdit={(q) => { setDialogError(null); setDialog({ kind: "edit", quest: q }); }}
         onDelete={(q) => { setDialogError(null); setDialog({ kind: "delete", quest: q }); }}
         actionLoading={actionLoading}
       />
+
+      <CompletionHistory completions={completions} />
+
+      {celebration && (
+        <CompletionCelebration
+          result={celebration.result}
+          questTitle={celebration.title}
+          onClose={() => setCelebration(null)}
+        />
+      )}
 
       {dialog.kind === "create" && (
         <CreateQuestDialog

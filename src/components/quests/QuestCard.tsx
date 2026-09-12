@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 interface QuestCardProps {
   quest: QuestWithCategory;
   onStart: (id: string) => void;
+  onComplete: (quest: QuestWithCategory) => void;
   onEdit: (quest: QuestWithCategory) => void;
   onDelete: (quest: QuestWithCategory) => void;
   actionLoading: string | null;
@@ -25,7 +26,7 @@ function statusLabel(status: string): string {
   }
 }
 
-export function QuestCard({ quest, onStart, onEdit, onDelete, actionLoading }: QuestCardProps) {
+export function QuestCard({ quest, onStart, onComplete, onEdit, onDelete, actionLoading }: QuestCardProps) {
   const busy = actionLoading === quest.id;
   const categoryName = quest.quest_categories?.name ?? "Unknown path";
   const attribute = quest.quest_categories?.attribute ?? "—";
@@ -107,20 +108,19 @@ export function QuestCard({ quest, onStart, onEdit, onDelete, actionLoading }: Q
         {(quest.status === "pending" || quest.status === "active") && (
           <button
             type="button"
-            disabled
-            title="Quest completion unlocks in the next milestone"
-            aria-describedby={`complete-hint-${quest.id}`}
+            onClick={() => onComplete(quest)}
+            disabled={busy}
+            aria-label={`Complete quest ${quest.title} and claim forge-sealed rewards`}
             className={cn(
               "px-4 py-2 rounded-lg text-sm font-semibold",
-              "border border-input text-muted-foreground cursor-not-allowed opacity-70"
+              "border border-primary/50 bg-primary/10 text-primary hover:bg-primary/20",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              "disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             )}
           >
-            Complete — soon
+            {busy ? "Claiming…" : "Complete quest"}
           </button>
         )}
-        <span id={`complete-hint-${quest.id}`} className="sr-only">
-          Completing quests will be enabled in the next milestone. No experience is awarded yet.
-        </span>
         {quest.status !== "completed" && (
           <>
             <button

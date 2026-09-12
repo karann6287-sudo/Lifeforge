@@ -5,7 +5,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Main } from "@/components/Main";
 import { QuestsClient } from "@/components/quests/QuestsClient";
-import type { QuestCategory, QuestWithCategory } from "@/types";
+import type { QuestCategory, QuestCompletion, QuestWithCategory, UserProfile } from "@/types";
 
 export const metadata: Metadata = {
   title: "Today's Adventure",
@@ -22,8 +22,8 @@ export default async function QuestsPage() {
     redirect("/login?redirect=/quests");
   }
 
-  const [{ data: profile }, { data: categories }, { data: quests }] = await Promise.all([
-    supabase.from("profiles").select("display_name").eq("id", user.id).single(),
+  const [{ data: profile }, { data: categories }, { data: quests }, { data: completions }] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", user.id).single(),
     supabase
       .from("quest_categories")
       .select("id,name,attribute,xp_multiplier,gold_multiplier,created_at")
@@ -32,6 +32,12 @@ export default async function QuestsPage() {
       .from("quests")
       .select("*, quest_categories(id,name,attribute,xp_multiplier,gold_multiplier,created_at)")
       .order("created_at", { ascending: false }),
+    supabase
+      .from("quest_completions")
+      .select("*, quests(title)")
+      .eq("user_id", user.id)
+      .order("completed_at", { ascending: false })
+      .limit(8),
   ]);
 
   return (
@@ -43,6 +49,8 @@ export default async function QuestsPage() {
             initialQuests={(quests ?? []) as QuestWithCategory[]}
             categories={(categories ?? []) as QuestCategory[]}
             displayName={profile?.display_name ?? "Adventurer"}
+            initialProfile={(profile ?? null) as UserProfile | null}
+            initialCompletions={(completions ?? []) as QuestCompletion[]}
           />
         </div>
       </Main>

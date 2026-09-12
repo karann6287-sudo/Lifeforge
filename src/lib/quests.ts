@@ -73,3 +73,55 @@ export function difficultyRank(d: QuestDifficulty): number {
       return 4;
   }
 }
+
+const SHORT_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+/**
+ * Deterministic UTC date formatter for completion timestamps.
+ * Avoids `toLocaleDateString()` (locale-dependent SSR/client mismatch).
+ * Uses UTC parts so the displayed calendar date never shifts with the
+ * viewer's timezone. Output: "Sep 13, 2026".
+ */
+export function formatCompletionDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const month = SHORT_MONTHS[d.getUTCMonth()] ?? "";
+  return `${month} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+}
+
+// Non-linear leveling, mirrors SQL: threshold to advance from L to L+1.
+export function xpThresholdForLevelUp(level: number): number {
+  return Math.floor(100 * Math.pow(Math.max(1, level), 1.5));
+}
+
+export function xpBaseForLevel(level: number): number {
+  if (level <= 1) return 0;
+  return Math.floor(100 * Math.pow(level - 1, 1.5));
+}
+
+export function xpProgressInLevel(xp: number, level: number): {
+  base: number;
+  next: number;
+  into: number;
+  span: number;
+  pct: number;
+} {
+  const base = xpBaseForLevel(level);
+  const next = xpThresholdForLevelUp(level);
+  const into = Math.max(0, xp - base);
+  const span = Math.max(1, next - base);
+  return { base, next, into, span, pct: Math.min(100, Math.round((into / span) * 100)) };
+}

@@ -74,6 +74,38 @@ export interface UpdateQuestInput {
   description: string | null;
 }
 
+export interface CompleteQuestResult {
+  success: boolean;
+  xp_awarded: number;
+  gold_awarded: number;
+  attribute_gained: string;
+  attribute_amount: number;
+  previous_level: number;
+  new_level: number;
+  previous_xp: number;
+  new_xp: number;
+  new_gold: number;
+  streak_at_completion: number;
+  error_message: string | null;
+}
+
+export interface QuestCompletion {
+  id: string;
+  user_id: string;
+  quest_id: string;
+  xp_awarded: number;
+  gold_awarded: number;
+  attribute_gained: string;
+  attribute_amount: number;
+  previous_level: number;
+  new_level: number;
+  previous_xp: number;
+  new_xp: number;
+  streak_at_completion: number;
+  completed_at: string;
+  quests?: { title: string } | null;
+}
+
 export interface InventoryItem {
   id: string;
   user_id: string;
