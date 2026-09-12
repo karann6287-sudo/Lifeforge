@@ -119,7 +119,19 @@ export interface Item {
   rarity: ItemRarity;
   item_type: ItemType;
   icon: string;
+  price: number;
   created_at: string;
+}
+
+export interface PurchaseResult {
+  success: boolean;
+  item_id: string | null;
+  item_name: string | null;
+  quantity_purchased: number;
+  unit_price: number;
+  total_cost: number;
+  remaining_gold: number;
+  error_message: string | null;
 }
 
 export interface InventoryItem {

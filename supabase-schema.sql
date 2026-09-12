@@ -582,8 +582,17 @@ CREATE TABLE IF NOT EXISTS public.items (
   item_type TEXT NOT NULL
     CHECK (item_type IN ('equipment','consumable','cosmetic')),
   icon TEXT NOT NULL DEFAULT '✨',
+  price BIGINT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Migration: trusted pricing on existing installs (no-op on fresh installs).
+-- The schema file is the single source of truth for catalog prices.
+ALTER TABLE public.items ADD COLUMN IF NOT EXISTS price BIGINT NOT NULL DEFAULT 0;
+DO $$ BEGIN
+  ALTER TABLE public.items ADD CONSTRAINT items_price_nonnegative CHECK (price >= 0);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 ALTER TABLE public.items ENABLE ROW LEVEL SECURITY;
 
@@ -598,15 +607,24 @@ REVOKE INSERT ON public.items FROM authenticated;
 REVOKE UPDATE ON public.items FROM authenticated;
 REVOKE DELETE ON public.items FROM authenticated;
 
--- Seed catalog (definitions only — no ownership, no shop pricing yet)
-INSERT INTO public.items (name, description, rarity, item_type, icon) VALUES
-  ('Ember Potion', 'A warm draft for cold mornings. Restores resolve.', 'common', 'consumable', '🧪'),
-  ('Focus Tonic', 'A bitter brew that sharpens an afternoon of study.', 'uncommon', 'consumable', '⚗️'),
-  ('Iron Charm', 'A steadfast token carried by disciplined adventurers.', 'common', 'equipment', '🪙'),
-  ('Traveler''s Cloak', 'Weathered and proud. For those who show up daily.', 'uncommon', 'equipment', '🧥'),
-  ('Star Banner', 'A banner charting constellations of long-term goals.', 'rare', 'cosmetic', '🚩'),
-  ('Ember Crown', 'A crown for legendary deeds. Rarely bestowed.', 'epic', 'cosmetic', '👑')
+-- Seed catalog (definitions only — no ownership; prices are trusted server values)
+INSERT INTO public.items (name, description, rarity, item_type, icon, price) VALUES
+  ('Ember Potion', 'A warm draft for cold mornings. Restores resolve.', 'common', 'consumable', '🧪', 50),
+  ('Focus Tonic', 'A bitter brew that sharpens an afternoon of study.', 'uncommon', 'consumable', '⚗️', 100),
+  ('Iron Charm', 'A steadfast token carried by disciplined adventurers.', 'common', 'equipment', '🪙', 150),
+  ('Traveler''s Cloak', 'Weathered and proud. For those who show up daily.', 'uncommon', 'equipment', '🧥', 250),
+  ('Star Banner', 'A banner charting constellations of long-term goals.', 'rare', 'cosmetic', '🚩', 400),
+  ('Ember Crown', 'A crown for legendary deeds. Rarely bestowed.', 'epic', 'cosmetic', '👑', 750)
 ON CONFLICT (name) DO NOTHING;
+
+-- Backfill canonical prices on existing installs (fresh installs already have them).
+-- Deterministic: the schema file remains the source of truth for catalog prices.
+UPDATE public.items SET price = 50 WHERE name = 'Ember Potion' AND price IS DISTINCT FROM 50;
+UPDATE public.items SET price = 100 WHERE name = 'Focus Tonic' AND price IS DISTINCT FROM 100;
+UPDATE public.items SET price = 150 WHERE name = 'Iron Charm' AND price IS DISTINCT FROM 150;
+UPDATE public.items SET price = 250 WHERE name = 'Traveler''s Cloak' AND price IS DISTINCT FROM 250;
+UPDATE public.items SET price = 400 WHERE name = 'Star Banner' AND price IS DISTINCT FROM 400;
+UPDATE public.items SET price = 750 WHERE name = 'Ember Crown' AND price IS DISTINCT FROM 750;
 
 -- ============================================================
 -- 16. USER INVENTORY (owned items)
@@ -693,6 +711,103 @@ REVOKE EXECUTE ON FUNCTION public.grant_item(UUID, UUID, INTEGER) FROM PUBLIC;
 CREATE INDEX IF NOT EXISTS idx_inventory_items_user_id ON public.inventory_items(user_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_items_item_id ON public.inventory_items(item_id);
 
-COMMENT ON TABLE public.items IS 'Trusted item catalog. Read-only for authenticated users; definitions only, no pricing yet.';
+COMMENT ON TABLE public.items IS 'Trusted item catalog with server-set prices. Read-only for authenticated users.';
 COMMENT ON TABLE public.inventory_items IS 'User-owned items. Read-only for authenticated users; only grant_item() (internal, no client execute grant) can write.';
 COMMENT ON FUNCTION public.grant_item(UUID, UUID, INTEGER) IS 'Internal item grant with upsert on (user_id, item_id). No EXECUTE grant to client roles — not browser-callable.';
+
+-- ============================================================
+-- 18. TRUSTED SHOP PURCHASE FUNCTION
+-- ============================================================
+-- Spends the caller's Gold for catalog items and grants them to inventory.
+-- The client supplies ONLY item_id and quantity. Price, total cost, user
+-- identity, and resulting balances are all derived server-side. Maximum
+-- purchase quantity per call: 99.
+CREATE OR REPLACE FUNCTION public.purchase_item(
+  p_item_id UUID,
+  p_quantity INTEGER DEFAULT 1
+)
+RETURNS TABLE(
+  success BOOLEAN,
+  item_id UUID,
+  item_name TEXT,
+  quantity_purchased INTEGER,
+  unit_price BIGINT,
+  total_cost BIGINT,
+  remaining_gold BIGINT,
+  error_message TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_item public.items%ROWTYPE;
+  v_gold BIGINT;
+  v_total BIGINT;
+  v_max BIGINT := 9223372036854775807;
+BEGIN
+  -- 1. Authenticated session only; identity comes from the JWT, never input.
+  IF auth.uid() IS NULL THEN
+    RETURN QUERY SELECT false, NULL::UUID, NULL::TEXT, 0, 0::BIGINT, 0::BIGINT, 0::BIGINT, 'Not authenticated';
+  END IF;
+
+  -- 2. Quantity guard: positive, at most 99 per call.
+  IF p_quantity IS NULL OR p_quantity <= 0 OR p_quantity > 99 THEN
+    RETURN QUERY SELECT false, NULL::UUID, NULL::TEXT, 0, 0::BIGINT, 0::BIGINT, 0::BIGINT, 'Quantity must be between 1 and 99';
+  END IF;
+
+  IF p_item_id IS NULL THEN
+    RETURN QUERY SELECT false, NULL::UUID, NULL::TEXT, 0, 0::BIGINT, 0::BIGINT, 0::BIGINT, 'Unknown item';
+  END IF;
+
+  -- 3. Lock the buyer's profile row BEFORE reading balances or deducting.
+  -- Concurrent purchases serialize here, so Gold can never be double-spent.
+  SELECT gold INTO v_gold
+  FROM public.profiles
+  WHERE id = auth.uid()
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN QUERY SELECT false, NULL::UUID, NULL::TEXT, 0, 0::BIGINT, 0::BIGINT, 0::BIGINT, 'Profile not found';
+  END IF;
+
+  -- 4. Load the trusted catalog row (price comes from the database, never input).
+  SELECT * INTO v_item
+  FROM public.items
+  WHERE id = p_item_id;
+
+  IF NOT FOUND THEN
+    RETURN QUERY SELECT false, p_item_id, NULL::TEXT, 0, 0::BIGINT, 0::BIGINT, v_gold, 'Unknown item';
+  END IF;
+
+  IF v_item.price < 0 THEN
+    RAISE EXCEPTION 'Invalid item price';
+  END IF;
+
+  -- 5. Overflow-safe total: price * quantity, rejected before any write.
+  IF v_item.price > v_max / p_quantity THEN
+    RAISE EXCEPTION 'Price calculation overflow';
+  END IF;
+  v_total := v_item.price * p_quantity;
+
+  -- 6. Sufficient funds? No writes have happened yet, so denial is side-effect free.
+  IF v_gold < v_total THEN
+    RETURN QUERY SELECT false, v_item.id, v_item.name, 0, v_item.price, v_total, v_gold, 'Insufficient gold';
+  END IF;
+
+  -- 7. Deduct Gold.
+  UPDATE public.profiles
+  SET gold = gold - v_total, updated_at = NOW()
+  WHERE id = auth.uid();
+
+  -- 8. Grant the items. Any failure here raises and rolls back the deduction.
+  PERFORM public.grant_item(auth.uid(), v_item.id, p_quantity);
+
+  RETURN QUERY SELECT true, v_item.id, v_item.name, p_quantity, v_item.price, v_total, v_gold - v_total, NULL::TEXT;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.purchase_item(UUID, INTEGER) TO authenticated;
+
+COMMENT ON FUNCTION public.purchase_item(UUID, INTEGER) IS 'Trusted shop purchase: spends caller Gold at catalog prices and grants items. Client supplies only item_id and quantity (max 99).';
+COMMENT ON COLUMN public.items.price IS 'Trusted unit price in Gold. Set by schema seeds/migrations; never client-editable.';
