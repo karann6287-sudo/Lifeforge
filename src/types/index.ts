@@ -30,20 +30,48 @@ export interface TaskCategory {
   gold_multiplier: number;
 }
 
+export type QuestDifficulty = "easy" | "medium" | "hard" | "epic";
+export type QuestStatus = "pending" | "active" | "completed" | "failed";
+
+export interface QuestCategory {
+  id: string;
+  name: string;
+  attribute: "strength" | "intellect" | "discipline" | "wisdom" | "charisma";
+  xp_multiplier: number;
+  gold_multiplier: number;
+  created_at: string;
+}
+
 export interface Quest {
   id: string;
   user_id: string;
   title: string;
   description: string | null;
   category_id: string;
-  difficulty: "trivial" | "easy" | "medium" | "hard" | "epic";
+  difficulty: QuestDifficulty;
   xp_reward: number;
   gold_reward: number;
-  status: "pending" | "active" | "completed" | "failed";
-  streak: number;
+  status: QuestStatus;
+  started_at: string | null;
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface QuestWithCategory extends Quest {
+  quest_categories: QuestCategory | null;
+}
+
+export interface CreateQuestInput {
+  title: string;
+  description: string | null;
+  category_id: string;
+  difficulty: QuestDifficulty;
+}
+
+export interface UpdateQuestInput {
+  title: string;
+  description: string | null;
 }
 
 export interface InventoryItem {

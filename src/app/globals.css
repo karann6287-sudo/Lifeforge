@@ -83,6 +83,16 @@
   .animate-in {
     animation: animate-in 0.3s ease-out;
   }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-in {
+      animation: none;
+    }
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+    }
+  }
   @keyframes animate-in {
     from {
       opacity: 0;

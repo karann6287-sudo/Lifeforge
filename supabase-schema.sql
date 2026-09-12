@@ -33,11 +33,13 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 -- 2. RLS POLICIES - PROFILES (user isolation only)
 -- ============================================================
 
+DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
 CREATE POLICY "Users can read own profile"
   ON public.profiles
   FOR SELECT
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile"
   ON public.profiles
   FOR UPDATE
@@ -72,6 +74,7 @@ INSERT INTO public.quest_categories (name, attribute, xp_multiplier, gold_multip
 ON CONFLICT (name) DO NOTHING;
 
 ALTER TABLE public.quest_categories ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can read quest categories" ON public.quest_categories;
 CREATE POLICY "Anyone can read quest categories"
   ON public.quest_categories
   FOR SELECT
@@ -103,6 +106,7 @@ CREATE TABLE IF NOT EXISTS public.quests (
 ALTER TABLE public.quests ENABLE ROW LEVEL SECURITY;
 
 -- RLS: users can read own quests
+DROP POLICY IF EXISTS "Users can read own quests" ON public.quests;
 CREATE POLICY "Users can read own quests"
   ON public.quests
   FOR SELECT
@@ -111,17 +115,26 @@ CREATE POLICY "Users can read own quests"
 -- RLS: users can insert own quests via create_quest() only (not direct INSERT)
 -- The RLS policy allows INSERT where user_id = auth.uid(), but column privileges
 -- below prevent direct INSERT by authenticated users (see section 6)
+DROP POLICY IF EXISTS "Users can insert own quests" ON public.quests;
 CREATE POLICY "Users can insert own quests"
   ON public.quests
   FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
 -- RLS: users can update own quests (limited columns via column privileges)
+DROP POLICY IF EXISTS "Users can update own quests" ON public.quests;
 CREATE POLICY "Users can update own quests"
   ON public.quests
   FOR UPDATE
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- RLS: users can delete only their own quests (Abandon action)
+DROP POLICY IF EXISTS "Users can delete own quests" ON public.quests;
+CREATE POLICY "Users can delete own quests"
+  ON public.quests
+  FOR DELETE
+  USING (auth.uid() = user_id);
 
 -- ============================================================
 -- 6. COLUMN-LEVEL PRIVILEGES - QUESTS
@@ -278,6 +291,7 @@ CREATE TABLE IF NOT EXISTS public.quest_completions (
 
 ALTER TABLE public.quest_completions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can read own completions" ON public.quest_completions;
 CREATE POLICY "Users can read own completions"
   ON public.quest_completions
   FOR SELECT
