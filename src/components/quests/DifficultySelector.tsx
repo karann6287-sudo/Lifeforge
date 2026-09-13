@@ -45,7 +45,7 @@ export function DifficultySelector({ value, onChange, disabled }: DifficultySele
         })}
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        Harder deeds earn greater XP and gold — set by the forge, not by you.
+        Harder deeds earn greater AURA and CREDITS — set by the forge, not by you.
       </p>
     </fieldset>
   );

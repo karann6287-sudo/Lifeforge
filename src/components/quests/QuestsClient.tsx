@@ -199,7 +199,7 @@ export function QuestsClient({ initialQuests, categories, displayName, initialPr
       const row = (Array.isArray(data) ? data[0] : data) as CompleteQuestResult | undefined;
       if (!row) throw new Error("The forge returned no verdict. Try again.");
       if (!row.success) {
-        throw new Error(row.error_message ?? "This quest cannot be completed.");
+        throw new Error(row.error_message ?? "This quest cannot be cleared.");
       }
       // Server confirmed — now reveal rewards and refresh visible state.
       await refresh();
@@ -216,7 +216,7 @@ export function QuestsClient({ initialQuests, categories, displayName, initialPr
       }
       setCelebration({ result: row, title: quest.title, ownedQuantity: owned });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Could not complete your quest.";
+      const message = err instanceof Error ? err.message : "Could not clear your quest.";
       setBannerError(message);
     } finally {
       setActionLoading(null);
@@ -228,56 +228,48 @@ export function QuestsClient({ initialQuests, categories, displayName, initialPr
 
   return (
     <div className="space-y-8">
-      <div className="rounded-2xl border bg-card/50 backdrop-blur-sm p-6 sm:p-8 shadow-xl overflow-hidden relative">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-forge-pattern opacity-60" />
+      <div className="relative overflow-hidden">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-forge-pattern opacity-40" />
         <div className="relative">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Today&apos;s Adventure</p>
-          <h1 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight text-balance">
-            Your real-life actions <span className="text-gradient-gold">become quests</span>, {displayName}
-          </h1>
-          <p className="mt-3 max-w-2xl text-muted-foreground">
-            Forge a deed from your day — train, learn, tidy, reach out. The forge seals
-            difficulty and rewards so every triumph is earned, never edited.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2 text-sm" aria-live="polite">
-            <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1">
-              {activeCount} in progress
-            </span>
-            <span className="rounded-full border border-input bg-background/60 px-3 py-1">
-              {pendingCount} ready to begin
-            </span>
-            <span className="rounded-full border border-input bg-background/60 px-3 py-1">
-              {quests.length} total deeds
-            </span>
+          <p className="kicker">Mission board</p>
+          <div className="mt-2 flex flex-wrap items-end justify-between gap-6">
+            <h1 className="text-5xl font-bold tracking-tight sm:text-6xl">
+              QUESTS
+            </h1>
+            <p className="max-w-md text-muted-foreground" aria-live="polite">
+              Your real-life missions, {displayName} —{" "}
+              <span className="tabular font-semibold text-foreground">{activeCount}</span> underway,{" "}
+              <span className="tabular font-semibold text-foreground">{pendingCount}</span> standing by.
+            </p>
           </div>
-          <div className="mt-6 flex flex-col sm:flex-row gap-3">
+          <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
             <button
               type="button"
               onClick={() => { setDialogError(null); setDialog({ kind: "create" }); }}
               className={cn(
-                "px-6 py-3 rounded-lg font-semibold",
-                "bg-primary text-primary-foreground hover:bg-primary/90",
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                "rounded-lg bg-primary px-6 py-3 text-sm font-bold uppercase tracking-widest text-primary-foreground",
+                "hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                 "transition-colors"
               )}
             >
-              ＋ Forge a quest
+              ＋ Issue a mission
             </button>
             <button
               type="button"
               onClick={refresh}
               disabled={refreshing}
               className={cn(
-                "px-6 py-3 rounded-lg font-medium border border-input bg-background hover:bg-accent",
+                "text-sm font-medium text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
               )}
             >
-              {refreshing ? "Consulting the forge…" : "Refresh"}
+              {refreshing ? "Consulting the forge…" : "Refresh board"}
             </button>
           </div>
         </div>
       </div>
+      <hr className="forge-divider" aria-hidden="true" />
 
       {bannerError && (
         <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive flex flex-col sm:flex-row sm:items-center gap-3 justify-between">

@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     default: "LIFEFORGE — Your real-life actions forge your character",
     template: "%s | LIFEFORGE",
   },
-  description: "Turn real-life habits into RPG progression. Complete quests, earn XP, level up attributes, and build your character.",
+  description: "Turn real-life habits into RPG progression. Clear quests, earn AURA, rank up attributes, and build your character.",
   keywords: ["habit tracker", "RPG", "gamification", "productivity", "self-improvement"],
   authors: [{ name: "LIFEFORGE Team" }],
   creator: "LIFEFORGE",
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     url: "https://lifeforge.app",
     siteName: "LIFEFORGE",
     title: "LIFEFORGE — Your real-life actions forge your character",
-    description: "Turn real-life habits into RPG progression. Complete quests, earn XP, level up attributes, and build your character.",
+    description: "Turn real-life habits into RPG progression. Clear quests, earn AURA, rank up attributes, and build your character.",
     images: [
       {
         url: "/og-image.png",

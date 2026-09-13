@@ -18,7 +18,7 @@ export default function PrivacyPage() {
         <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
           <li>Account basics: your email address and chosen display name, needed for sign-in.</li>
           <li>Quest content you create: titles, descriptions, categories, difficulties, and statuses.</li>
-          <li>Progression derived from quests: XP, gold, level, attributes, and streaks.</li>
+          <li>Progression derived from quests: AURA, CREDITS, rank, attributes, and COMBOs.</li>
         </ul>
       </section>
       <section aria-label="How data is used" className="rounded-2xl border bg-card/50 p-5 sm:p-6 space-y-3 text-sm">

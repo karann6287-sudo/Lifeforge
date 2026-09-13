@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCompletionDate } from "@/lib/quests";
+import { attributeShort, formatCompletionDate } from "@/lib/quests";
 import type { QuestCompletion } from "@/types";
 
 export function CompletionHistory({ completions }: { completions: QuestCompletion[] }) {
@@ -22,14 +22,14 @@ export function CompletionHistory({ completions }: { completions: QuestCompletio
             <div className="min-w-0">
               <p className="font-semibold truncate">{c.quests?.title ?? "Quest"}</p>
               <p className="text-xs text-muted-foreground">
-                {formatCompletionDate(c.completed_at)} · {c.attribute_gained} +{c.attribute_amount}
+                {formatCompletionDate(c.completed_at)} · {attributeShort(c.attribute_gained)} +{c.attribute_amount}
                 {c.new_level > c.previous_level && (
-                  <span className="font-semibold text-primary"> · Lv {c.previous_level} → {c.new_level}</span>
+                  <span className="font-semibold text-primary"> · RANK {c.previous_level} → {c.new_level}</span>
                 )}
               </p>
             </div>
-            <p className="font-semibold text-primary shrink-0" aria-label={`Earned ${c.xp_awarded} experience and ${c.gold_awarded} gold`}>
-              +{c.xp_awarded} XP · +{c.gold_awarded} gold
+            <p className="font-semibold text-primary shrink-0" aria-label={`Earned ${c.xp_awarded} aura and ${c.gold_awarded} credits`}>
+              +{c.xp_awarded} AURA · +{c.gold_awarded} CREDITS
             </p>
           </li>
         ))}

@@ -18,11 +18,11 @@ export function ProgressionHeader({ profile }: { profile: UserProfile | null }) 
   }
 
   const progress = xpProgressInLevel(profile.xp, profile.level);
-  const leveledAttrs: Array<{ name: string; value: number; icon: string }> = [
-    { name: "Strength", value: profile.strength, icon: "⚔️" },
-    { name: "Intellect", value: profile.intellect, icon: "📚" },
-    { name: "Discipline", value: profile.discipline, icon: "🛡️" },
-    { name: "Wisdom", value: profile.wisdom, icon: "🌙" },
+  const leveledAttrs: Array<{ short: string; full: string; value: number; icon: string }> = [
+    { short: "STR", full: "Strength", value: profile.strength, icon: "⚔️" },
+    { short: "INT", full: "Intellect", value: profile.intellect, icon: "📚" },
+    { short: "DISC", full: "Discipline", value: profile.discipline, icon: "🛡️" },
+    { short: "WIS", full: "Wisdom", value: profile.wisdom, icon: "🌙" },
   ];
 
   return (
@@ -34,18 +34,18 @@ export function ProgressionHeader({ profile }: { profile: UserProfile | null }) 
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Character</p>
           <h2 className="text-2xl font-bold">
-            Lv {profile.level} <span className="text-muted-foreground font-medium">· {profile.display_name}</span>
+            RANK {profile.level} <span className="text-muted-foreground font-medium">· {profile.display_name}</span>
           </h2>
         </div>
         <div className="flex gap-2 text-sm" aria-live="polite">
           <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 font-semibold text-primary">
-            <span aria-hidden="true">✦</span> {profile.xp} XP
+            <span aria-hidden="true">✦</span> {profile.xp} AURA
           </span>
           <span className="rounded-full border border-input bg-background/60 px-3 py-1 font-semibold">
-            <span aria-hidden="true">◉</span> {profile.gold} gold
+            <span aria-hidden="true">◉</span> {profile.gold} CREDITS
           </span>
           <span className="rounded-full border border-input bg-background/60 px-3 py-1 font-semibold">
-            <span aria-hidden="true">🔥</span> {profile.streak} streak
+            <span aria-hidden="true">🔥</span> {profile.streak} COMBO
           </span>
         </div>
       </div>
@@ -53,7 +53,7 @@ export function ProgressionHeader({ profile }: { profile: UserProfile | null }) 
       <div className="mt-4">
         <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
           <span>
-            {progress.into} / {progress.span} XP to Lv {profile.level + 1}
+            {progress.into} / {progress.span} AURA to RANK {profile.level + 1}
           </span>
           <span>{progress.pct}%</span>
         </div>
@@ -63,7 +63,7 @@ export function ProgressionHeader({ profile }: { profile: UserProfile | null }) 
           aria-valuenow={progress.pct}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label={`Experience progress: ${progress.into} of ${progress.span} toward level ${profile.level + 1}`}
+          aria-label={`Aura progress: ${progress.into} of ${progress.span} toward rank ${profile.level + 1}`}
         >
           <div
             className="h-full rounded-full bg-gradient-to-r from-primary via-yellow-300 to-primary transition-[width] duration-1000 ease-out motion-reduce:transition-none quest-xp-fill"
@@ -74,10 +74,11 @@ export function ProgressionHeader({ profile }: { profile: UserProfile | null }) 
 
       <dl className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
         {leveledAttrs.map((a) => (
-          <div key={a.name} className="rounded-xl border bg-background/40 px-3 py-2 text-center">
+          <div key={a.short} className="rounded-xl border bg-background/40 px-3 py-2 text-center" title={a.full}>
             <dt className="text-xs text-muted-foreground">
               <span aria-hidden="true">{a.icon} </span>
-              {a.name}
+              {a.short}
+              <span className="sr-only"> ({a.full})</span>
             </dt>
             <dd className="text-lg font-bold">{a.value}</dd>
           </div>

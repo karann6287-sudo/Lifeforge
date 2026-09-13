@@ -1,9 +1,6 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
-import { Main } from "@/components/Main";
 import { QuestsClient } from "@/components/quests/QuestsClient";
 import type { QuestCategory, QuestCompletion, QuestWithCategory, UserProfile } from "@/types";
 
@@ -41,20 +38,16 @@ export default async function QuestsPage() {
   ]);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <Main className="flex-1 px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-5xl">
-          <QuestsClient
-            initialQuests={(quests ?? []) as QuestWithCategory[]}
-            categories={(categories ?? []) as QuestCategory[]}
-            displayName={profile?.display_name ?? "Adventurer"}
-            initialProfile={(profile ?? null) as UserProfile | null}
-            initialCompletions={(completions ?? []) as QuestCompletion[]}
-          />
-        </div>
-      </Main>
-      <Footer />
+    <div className="px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl">
+        <QuestsClient
+          initialQuests={(quests ?? []) as QuestWithCategory[]}
+          categories={(categories ?? []) as QuestCategory[]}
+          displayName={profile?.display_name ?? "Adventurer"}
+          initialProfile={(profile ?? null) as UserProfile | null}
+          initialCompletions={(completions ?? []) as QuestCompletion[]}
+        />
+      </div>
     </div>
   );
 }

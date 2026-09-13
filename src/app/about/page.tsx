@@ -3,15 +3,15 @@ import { InfoPage } from "@/components/InfoPage";
 
 export const metadata: Metadata = {
   title: "About",
-  description: "What LIFEFORGE is: real-life actions become quests, quests grant XP and gold, and your character grows.",
+  description: "What LIFEFORGE is: real-life actions become quests, quests grant AURA and CREDITS, and your character grows.",
 };
 
 const STEPS = [
   { icon: "🗺️", title: "Real life becomes quests", text: "A workout, a chapter read, a tidy room — each becomes a deed with a category and difficulty you choose." },
-  { icon: "✦", title: "Quests grant XP and gold", text: "Rewards are sealed by the forge from difficulty and category. Nothing is hand-editable, so every gain is earned." },
+  { icon: "✦", title: "Quests grant AURA and CREDITS", text: "Rewards are sealed by the forge from difficulty and category. Nothing is hand-editable, so every gain is earned." },
   { icon: "📊", title: "Attributes grow", text: "Fitness feeds Strength, learning feeds Intellect, focus feeds Discipline, reflection feeds Wisdom." },
-  { icon: "🔥", title: "Streaks compound", text: "Show up daily to build a streak. Miss a day and the streak resets — your XP and levels stay." },
-  { icon: "👑", title: "Levels mark mastery", text: "A non-linear curve means early progress feels fast and true mastery takes dedication." },
+  { icon: "🔥", title: "COMBOs compound", text: "Show up daily to build a COMBO. Miss a day and the COMBO resets — your AURA and ranks stay." },
+  { icon: "👑", title: "Ranks mark mastery", text: "A non-linear curve means early progress feels fast and true mastery takes dedication." },
 ];
 
 export default function AboutPage() {
@@ -19,7 +19,7 @@ export default function AboutPage() {
     <InfoPage
       eyebrow="About"
       title={<>Your real-life actions forge your character</>}
-      lede="LIFEFORGE turns habits into a role-playing game. Instead of checking off todos, you complete quests — and your character levels up with you."
+      lede="LIFEFORGE turns habits into a role-playing game. Instead of checking off todos, you clear quests — and your character ranks up with you."
     >
       <section aria-label="How it works" className="grid gap-4 md:grid-cols-2">
         {STEPS.map((s, i) => (
@@ -36,7 +36,7 @@ export default function AboutPage() {
       <section aria-label="Project stage" className="rounded-2xl border bg-card/50 p-5 sm:p-6">
         <h2 className="text-xl font-bold">Built in the open</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          LIFEFORGE is a hackathon-stage project: quests, progression, streaks, and history work today,
+          LIFEFORGE is a hackathon-stage project: quests, progression, COMBOs, and history work today,
           while inventory, shop, and leaderboards are still on the roadmap. What you see is what the forge can do.
         </p>
       </section>

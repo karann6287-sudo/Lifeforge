@@ -4,6 +4,8 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { getOverallTitle } from "@/lib/titles";
+import { xpProgressInLevel } from "@/lib/quests";
 import { UserProfile } from "@/types";
 
 interface ProfileCardProps {
@@ -17,15 +19,11 @@ export function ProfileCard({ profile, loading }: ProfileCardProps) {
       <div className="animate-pulse space-y-4" aria-busy="true" aria-label="Loading profile">
         <div className="h-8 w-48 bg-muted rounded" />
         <div className="h-4 w-32 bg-muted rounded" />
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="h-20 bg-muted rounded" />
-          <div className="h-20 bg-muted rounded" />
-          <div className="h-20 bg-muted rounded" />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="h-20 bg-muted rounded" />
-          <div className="h-20 bg-muted rounded" />
-          <div className="h-20 bg-muted rounded" />
+        <div className="h-3 w-full bg-muted rounded-full" />
+        <div className="space-y-2">
+          <div className="h-10 bg-muted rounded" />
+          <div className="h-10 bg-muted rounded" />
+          <div className="h-10 bg-muted rounded" />
         </div>
       </div>
     );
@@ -39,72 +37,118 @@ export function ProfileCard({ profile, loading }: ProfileCardProps) {
     );
   }
 
+  const overall = getOverallTitle({
+    strength: profile.strength,
+    intellect: profile.intellect,
+    discipline: profile.discipline,
+    wisdom: profile.wisdom,
+  });
+  const progress = xpProgressInLevel(profile.xp, profile.level);
+
   return (
-    <div className="space-y-6 animate-in">
-      <div className="flex items-center gap-4">
-        <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-2xl">
-          {profile.display_name.charAt(0).toUpperCase()}
+    <div className="animate-in">
+      {overall ? (
+        <p
+          aria-label={`Displayed title: ${overall.tier.name}`}
+          className={cn(
+            "text-lg font-bold uppercase tracking-[0.18em]",
+            overall.tier.ultimate ? "text-gradient-gold" : "text-primary"
+          )}
+        >
+          {overall.tier.ultimate && <span aria-hidden="true">✦ </span>}
+          {overall.tier.name}
+        </p>
+      ) : (
+        <p className="text-sm text-muted-foreground/70">Untitled — reach 10 in any attribute</p>
+      )}
+      <p className="mt-2 text-sm text-muted-foreground">
+        RANK <span className="tabular text-4xl font-bold tracking-tight text-foreground">{profile.level}</span>
+      </p>
+
+      {/* AURA gauge */}
+      <div className="mt-6">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="kicker">AURA</p>
+          <p className="tabular text-sm text-muted-foreground">
+            <span className="font-bold text-foreground">{progress.into}</span> / {progress.span} to RANK {profile.level + 1}
+          </p>
         </div>
-        <div>
-          <h2 className="text-2xl font-bold">{profile.display_name}</h2>
-          <p className="text-muted-foreground">Level {profile.level} Adventurer</p>
+        <div
+          className="mt-2 h-3 w-full overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          aria-valuenow={progress.pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`Aura progress: ${progress.into} of ${progress.span} toward rank ${profile.level + 1}`}
+        >
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-primary via-yellow-300 to-primary transition-[width] duration-1000 ease-out motion-reduce:transition-none quest-xp-fill"
+            style={{ width: `${progress.pct}%` }}
+          />
         </div>
+        <p className="tabular mt-2 text-sm text-muted-foreground">
+          Total AURA <span className="font-bold text-foreground">{profile.xp}</span>
+        </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border bg-card p-4 text-center">
-          <p className="text-3xl font-bold text-primary">{profile.xp}</p>
-          <p className="text-sm text-muted-foreground">XP</p>
+      <dl className="mt-6 grid grid-cols-2 gap-6" aria-live="polite">
+        <div className="border-l-2 border-yellow-500/50 pl-4">
+          <dt className="kicker">Credits</dt>
+          <dd className="tabular mt-1 text-3xl font-bold">◉ {profile.gold}</dd>
         </div>
-        <div className="rounded-xl border bg-card p-4 text-center">
-          <p className="text-3xl font-bold text-yellow-500">{profile.gold}</p>
-          <p className="text-sm text-muted-foreground">Gold</p>
+        <div className="border-l-2 border-orange-500/50 pl-4">
+          <dt className="kicker">Combo</dt>
+          <dd className="tabular mt-1 text-3xl font-bold">🔥 {profile.streak}</dd>
         </div>
-        <div className="rounded-xl border bg-card p-4 text-center">
-          <p className="text-3xl font-bold text-orange-500">{profile.streak}</p>
-          <p className="text-sm text-muted-foreground">Day Streak</p>
-        </div>
-      </div>
+      </dl>
 
-      <div className="rounded-xl border bg-card p-4">
-        <h3 className="font-semibold mb-4">Attributes</h3>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <AttributeBar name="Strength" value={profile.strength} color="red" icon="⚔️" />
-          <AttributeBar name="Intellect" value={profile.intellect} color="blue" icon="🧠" />
-          <AttributeBar name="Discipline" value={profile.discipline} color="purple" icon="🛡️" />
-          <AttributeBar name="Wisdom" value={profile.wisdom} color="green" icon="👁️" />
-          <AttributeBar name="Charisma" value={0} color="pink" icon="✨" />
-        </div>
+      <hr className="forge-divider my-6" aria-hidden="true" />
+
+      {/* Attributes */}
+      <h3 className="kicker">Attributes</h3>
+      <div className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
+        <AttributeRow abbr="STR" full="Strength" value={profile.strength} bar="bg-red-500" />
+        <AttributeRow abbr="INT" full="Intellect" value={profile.intellect} bar="bg-blue-500" />
+        <AttributeRow abbr="DISC" full="Discipline" value={profile.discipline} bar="bg-purple-500" />
+        <AttributeRow abbr="WIS" full="Wisdom" value={profile.wisdom} bar="bg-green-500" />
+        <AttributeRow abbr="CHA" full="Charisma" value={0} bar="bg-pink-500" />
       </div>
     </div>
   );
 }
 
-function AttributeBar({ name, value, color, icon }: { name: string; value: number; color: string; icon: string }) {
-  const colorClasses = {
-    red: "bg-red-500",
-    blue: "bg-blue-500",
-    purple: "bg-purple-500",
-    green: "bg-green-500",
-    pink: "bg-pink-500",
-  };
-
+function AttributeRow({
+  abbr,
+  full,
+  value,
+  bar,
+}: {
+  abbr: string;
+  full: string;
+  value: number;
+  bar: string;
+}) {
   return (
-    <div className="flex flex-col items-center gap-2">
-      <span className="text-2xl" aria-hidden="true">{icon}</span>
-      <span className="text-sm font-medium text-muted-foreground">{name}</span>
-      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+    <div>
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-sm font-bold tracking-widest">
+          {abbr} <span className="font-medium normal-case tracking-normal text-muted-foreground">{full}</span>
+        </p>
+        <p className="tabular text-xl font-bold">{value}</p>
+      </div>
+      <div
+        className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-valuenow={value}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`${full}: ${value}`}
+      >
         <div
-          className={cn("h-full rounded-full transition-all duration-500", colorClasses[color as keyof typeof colorClasses])}
+          className={cn("h-full rounded-full transition-all duration-500", bar)}
           style={{ width: `${Math.min(value * 10, 100)}%` }}
-          role="progressbar"
-          aria-valuenow={value}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={`${name}: ${value}`}
         />
       </div>
-      <span className="text-lg font-bold">{value}</span>
     </div>
   );
 }
@@ -126,10 +170,10 @@ export function LogoutButton() {
       onClick={handleLogout}
       disabled={loading}
       className={cn(
-        "px-4 py-2 rounded-lg font-medium",
-        "border border-destructive/20 text-destructive hover:bg-destructive/10",
-        "focus:outline-none focus:ring-2 focus:ring-destructive focus:ring-offset-2",
-        "transition-all duration-200",
+        "px-4 py-2 rounded-lg text-sm font-medium",
+        "text-muted-foreground hover:text-destructive hover:bg-destructive/10",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2",
+        "transition-colors",
         "disabled:opacity-50 disabled:cursor-not-allowed"
       )}
     >

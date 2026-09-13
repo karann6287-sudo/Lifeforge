@@ -16,18 +16,18 @@ const FILTERS: Array<{ value: Filter; label: string }> = [
   { value: "cosmetic", label: "Cosmetic" },
 ];
 
-function rarityStyle(rarity: string): string {
+function rarityEdge(rarity: string): string {
   switch (rarity) {
     case "uncommon":
-      return "border-green-500/40 bg-green-500/10 text-green-300";
+      return "border-l-green-500/60";
     case "rare":
-      return "border-blue-500/40 bg-blue-500/10 text-blue-300";
+      return "border-l-blue-500/60";
     case "epic":
-      return "border-purple-500/40 bg-purple-500/10 text-purple-300";
+      return "border-l-purple-500/60";
     case "legendary":
-      return "border-yellow-500/40 bg-yellow-500/10 text-yellow-300";
+      return "border-l-yellow-500/60";
     default:
-      return "border-input bg-background/60 text-muted-foreground";
+      return "border-l-border";
   }
 }
 
@@ -63,8 +63,8 @@ export function InventoryClient({ initialItems }: { initialItems: InventoryItem[
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by item type">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-wrap gap-x-6 gap-y-2" role="group" aria-label="Filter by loot type">
           {FILTERS.map((f) => (
             <button
               key={f.value}
@@ -72,32 +72,32 @@ export function InventoryClient({ initialItems }: { initialItems: InventoryItem[
               onClick={() => setFilter(f.value)}
               aria-pressed={filter === f.value}
               className={cn(
-                "px-4 py-2 rounded-lg text-sm font-medium border transition-colors",
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                "pb-1 text-sm font-semibold uppercase tracking-widest transition-colors",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm",
                 filter === f.value
-                  ? "border-primary bg-primary/15 text-foreground"
-                  : "border-input bg-background/50 text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                  ? "text-primary underline decoration-primary underline-offset-8"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               {f.label}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-3">
-          <p className="text-sm text-muted-foreground" aria-live="polite">
-            {items.length} {items.length === 1 ? "item" : "items"} · {totalUnits} total
+        <div className="flex items-baseline gap-4">
+          <p className="tabular text-sm text-muted-foreground" aria-live="polite">
+            {items.length} loot · {totalUnits} held
           </p>
           <button
             type="button"
             onClick={refresh}
             disabled={refreshing}
             className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium border border-input bg-background hover:bg-accent",
+              "text-sm font-medium text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground",
               "disabled:opacity-50 disabled:cursor-not-allowed",
-              "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
             )}
           >
-            {refreshing ? "Checking…" : "Refresh"}
+            {refreshing ? "Checking…" : "Recheck vault"}
           </button>
         </div>
       </div>
@@ -119,47 +119,42 @@ export function InventoryClient({ initialItems }: { initialItems: InventoryItem[
         <div className="rounded-2xl border border-dashed border-primary/30 bg-card/40 p-10 sm:p-14 text-center">
           <p aria-hidden="true" className="text-5xl">🎒</p>
           <h2 className="mt-4 text-2xl font-bold">
-            {items.length === 0 ? "Your pack is empty — for now" : "Nothing of this kind yet"}
+            {items.length === 0 ? "Your loadout is empty — for now" : "Nothing of this kind yet"}
           </h2>
           <p className="mx-auto mt-2 max-w-md text-muted-foreground">
             {items.length === 0
-              ? "Items you earn will appear here with their quantities. Complete quests and check back."
+              ? "Loot you earn will appear here with its quantities. Clear quests and check back."
               : "Try a different filter — your other spoils are still here."}
           </p>
         </div>
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2" aria-label="Owned items">
+        <ul className="grid gap-4 sm:grid-cols-2" aria-label="Owned loot">
           {visible.map((entry) => (
             <li
               key={entry.id}
-              className="rounded-2xl border bg-card/60 p-5 shadow-lg transition-colors hover:border-primary/40 motion-reduce:transition-none"
+              className={cn(
+                "rounded-2xl border border-border/60 border-l-2 bg-card/40 p-5 pl-6 shadow-lg backdrop-blur-sm",
+                "transition-colors hover:border-primary/40 hover:bg-card/60 motion-reduce:transition-none",
+                rarityEdge(entry.items?.rarity ?? "common")
+              )}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span
-                    aria-hidden="true"
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-2xl"
-                  >
-                    {entry.items?.icon ?? "✨"}
-                  </span>
-                  <div className="min-w-0">
-                    <h3 className="font-bold leading-tight truncate">{entry.items?.name ?? "Unknown item"}</h3>
-                    <p className="text-xs text-muted-foreground capitalize">
-                      {entry.items?.item_type ?? "—"} · {entry.items?.rarity ?? "—"}
-                    </p>
-                  </div>
+                <div className="min-w-0">
+                  <h3 className="font-bold leading-tight">
+                    <span aria-hidden="true">{entry.items?.icon ?? "✨"} </span>
+                    {entry.items?.name ?? "Unknown item"}
+                  </h3>
+                  <p className="mt-0.5 text-xs uppercase tracking-wider text-muted-foreground">
+                    {entry.items?.item_type ?? "—"} · {entry.items?.rarity ?? "—"}
+                  </p>
                 </div>
-                <span
-                  className={cn(
-                    "shrink-0 rounded-full border px-2.5 py-1 text-xs font-bold",
-                    rarityStyle(entry.items?.rarity ?? "common")
-                  )}
-                >
+                <p className="tabular shrink-0 text-lg font-bold text-primary">
                   ×{entry.quantity}
-                </span>
+                  <span className="sr-only"> owned</span>
+                </p>
               </div>
               {entry.items?.description && (
-                <p className="mt-3 text-sm text-muted-foreground">{entry.items.description}</p>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{entry.items.description}</p>
               )}
             </li>
           ))}
@@ -167,7 +162,7 @@ export function InventoryClient({ initialItems }: { initialItems: InventoryItem[
       )}
 
       <p className="text-xs text-muted-foreground">
-        Equipping, selling, and buying arrive with future milestones. Items shown here are your true stored ownership.
+        Equipping, selling, and buying arrive with future milestones. Loot shown here is your true stored ownership.
       </p>
     </div>
   );

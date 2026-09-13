@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { CompleteQuestResult } from "@/types";
+import { attributeShort } from "@/lib/quests";
 import { cn } from "@/lib/utils";
 
 interface CompletionCelebrationProps {
@@ -30,81 +31,92 @@ export function CompletionCelebration({ result, questTitle, ownedQuantity, onClo
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div aria-hidden="true" className="fixed inset-0 bg-black/75 backdrop-blur-sm" />
+      <div aria-hidden="true" className="fixed inset-0 bg-black/80 backdrop-blur-sm" />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="completion-title"
         className={cn(
-          "relative w-full max-w-md rounded-2xl border border-primary/40 bg-card p-6 sm:p-8 shadow-2xl text-center",
+          "relative w-full max-w-lg px-6 py-10 text-center sm:p-12",
           "quest-reward-pop motion-reduce:animate-none"
         )}
       >
-        <p aria-hidden="true" className="text-5xl quest-trophy-bounce motion-reduce:animate-none">
-          {leveledUp ? "👑" : "⚔️"}
-        </p>
-        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-          Quest complete
-        </p>
-        <h2 id="completion-title" className="mt-1 text-2xl font-bold">
-          {questTitle}
+        <p className="kicker">Battle report</p>
+        <h2 id="completion-title" className="mt-3 text-5xl font-bold tracking-tight sm:text-6xl">
+          QUEST<br />CLEARED
         </h2>
+        <p className="mt-3 text-muted-foreground">{questTitle}</p>
 
-        {leveledUp && (
-          <p
-            role="status"
-            className="mx-auto mt-3 inline-block rounded-full border border-primary bg-primary/15 px-4 py-1.5 font-bold text-primary quest-level-glow motion-reduce:animate-none"
-          >
-            ✨ LEVEL UP — Lv {result.previous_level} → Lv {result.new_level} ✨
-          </p>
-        )}
+        <hr className="forge-divider mx-auto mt-6 max-w-xs" aria-hidden="true" />
 
-        <dl className="mt-5 grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-xl border bg-background/50 p-3">
-            <dt className="text-xs text-muted-foreground">XP gained</dt>
-            <dd className="text-xl font-bold text-primary">+{result.xp_awarded}</dd>
+        <dl className="mx-auto mt-6 max-w-xs space-y-3 text-left" aria-live="polite">
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">AURA</dt>
+            <dd
+              className="tabular text-4xl font-bold text-primary quest-trophy-bounce motion-reduce:animate-none"
+              aria-label={`Gained ${result.xp_awarded} aura`}
+            >
+              +{result.xp_awarded}
+            </dd>
           </div>
-          <div className="rounded-xl border bg-background/50 p-3">
-            <dt className="text-xs text-muted-foreground">Gold gained</dt>
-            <dd className="text-xl font-bold text-yellow-300">+{result.gold_awarded}</dd>
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">CREDITS</dt>
+            <dd className="tabular text-2xl font-bold text-yellow-300">+{result.gold_awarded}</dd>
           </div>
-          <div className="rounded-xl border bg-background/50 p-3">
-            <dt className="text-xs text-muted-foreground capitalize">{result.attribute_gained}</dt>
-            <dd className="text-xl font-bold">+{result.attribute_amount}</dd>
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Stat increase</dt>
+            <dd className="text-2xl font-bold">
+              {attributeShort(result.attribute_gained)} +{result.attribute_amount}
+            </dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">COMBO</dt>
+            <dd className="tabular text-2xl font-bold">🔥 ×{result.streak_at_completion}</dd>
           </div>
         </dl>
+
+        {leveledUp && (
+          <div
+            role="status"
+            className="mx-auto mt-8 max-w-xs border-y border-primary/60 py-4 quest-level-glow motion-reduce:animate-none"
+          >
+            <p aria-hidden="true" className="text-4xl">👑</p>
+            <p className="mt-2 text-2xl font-bold uppercase tracking-widest text-gradient-gold">
+              RANK {result.previous_level} → {result.new_level}
+            </p>
+          </div>
+        )}
 
         {result.item_awarded_id && (
           <div
             role="status"
-            aria-label={`Item awarded: ${result.item_awarded_name}, quantity ${result.item_awarded_quantity}`}
-            className="mx-auto mt-4 max-w-xs rounded-xl border border-primary/40 bg-primary/10 p-4 quest-reward-pop motion-reduce:animate-none"
+            aria-label={`Loot found: ${result.item_awarded_name}, quantity ${result.item_awarded_quantity}`}
+            className="mx-auto mt-6 max-w-xs"
           >
-            <p aria-hidden="true" className="text-4xl">🎁</p>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-primary">Item found</p>
-            <p className="mt-1 font-bold">
-              {result.item_awarded_name} <span className="text-primary">×{result.item_awarded_quantity}</span>
+            <p className="kicker">✦ Loot found</p>
+            <p className="mt-2 text-2xl font-bold">
+              {result.item_awarded_name}{" "}
+              <span className="tabular text-primary">×{result.item_awarded_quantity}</span>
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {ownedQuantity !== null ? (
-                <>Now ×{ownedQuantity} in your pack · </>
+                <>Now ×{ownedQuantity} in your loadout · </>
               ) : null}
               <a href="/inventory" className="underline hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
-                View pack
+                View loadout
               </a>
             </p>
           </div>
         )}
 
-        <p className="mt-4 text-sm text-muted-foreground" aria-live="polite">
-          Streak: <span className="font-semibold text-foreground">{result.streak_at_completion} day{result.streak_at_completion === 1 ? "" : "s"}</span>
-          {" · "}Total XP: <span className="font-semibold text-foreground">{result.new_xp}</span>
+        <p className="tabular mt-6 text-xs text-muted-foreground" aria-live="polite">
+          Total AURA {result.new_xp}
         </p>
 
         <button
@@ -112,7 +124,7 @@ export function CompletionCelebration({ result, questTitle, ownedQuantity, onClo
           type="button"
           onClick={onClose}
           className={cn(
-            "mt-6 w-full px-6 py-3 rounded-lg font-semibold",
+            "mt-8 w-full max-w-xs px-6 py-3 rounded-lg text-sm font-bold uppercase tracking-widest",
             "bg-primary text-primary-foreground hover:bg-primary/90",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           )}

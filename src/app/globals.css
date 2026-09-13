@@ -88,7 +88,11 @@
     .quest-reward-pop,
     .quest-trophy-bounce,
     .quest-level-glow,
-    .quest-xp-fill {
+    .quest-xp-fill,
+    .idle-breathe,
+    .idle-sway,
+    .idle-glow,
+    .idle-ember {
       animation: none !important;
     }
     *,
@@ -159,6 +163,61 @@
       transform: translateY(0);
     }
   }
+  /* Character idle animation: transform + opacity only (GPU-cheap). */
+  .idle-breathe {
+    animation: idle-breathe 4.5s ease-in-out infinite;
+    transform-origin: 50% 100%;
+  }
+  .idle-sway {
+    animation: idle-sway 7s ease-in-out infinite;
+    transform-origin: 50% 100%;
+  }
+  .idle-glow {
+    animation: idle-glow 5s ease-in-out infinite;
+  }
+  .idle-ember {
+    animation: ember-rise 6s linear infinite;
+  }
+  @keyframes idle-breathe {
+    0%,
+    100% {
+      transform: translateY(0) scaleY(1);
+    }
+    50% {
+      transform: translateY(-3px) scaleY(1.008);
+    }
+  }
+  @keyframes idle-sway {
+    0%,
+    100% {
+      transform: translateX(-2px) rotate(-0.35deg);
+    }
+    50% {
+      transform: translateX(2px) rotate(0.35deg);
+    }
+  }
+  @keyframes idle-glow {
+    0%,
+    100% {
+      opacity: 0.45;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+  @keyframes ember-rise {
+    0% {
+      opacity: 0;
+      transform: translateY(0) scale(1);
+    }
+    15% {
+      opacity: 0.8;
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-120px) scale(0.4);
+    }
+  }
   .bg-forge-pattern {
     background-image:
       radial-gradient(circle at 1px 1px, rgba(212, 168, 67, 0.1) 1px, transparent 0);
@@ -174,5 +233,26 @@
     border: 1px solid transparent;
     background: linear-gradient(var(--background), var(--background)) padding-box,
       linear-gradient(135deg, #d4a843, #f4d03f) border-box;
+  }
+  /* Design system primitives: one product, one voice. */
+  .kicker {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-primary);
+  }
+  .forge-divider {
+    height: 1px;
+    border: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(212, 168, 67, 0.45),
+      transparent
+    );
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
   }
 }

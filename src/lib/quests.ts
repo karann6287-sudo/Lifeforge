@@ -61,6 +61,25 @@ export function categoryIcon(name: string): string {
   return CATEGORY_ICONS[name] ?? "✨";
 }
 
+/**
+ * Display shorthand for category attribute names.
+ * Database/API values stay untouched — this is presentation only.
+ */
+export function attributeShort(name: string): string {
+  switch (name.toLowerCase()) {
+    case "strength":
+      return "STR";
+    case "intellect":
+      return "INT";
+    case "discipline":
+      return "DISC";
+    case "wisdom":
+      return "WIS";
+    default:
+      return name.toUpperCase();
+  }
+}
+
 export function difficultyRank(d: QuestDifficulty): number {
   switch (d) {
     case "easy":

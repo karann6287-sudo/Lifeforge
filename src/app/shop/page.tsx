@@ -3,13 +3,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { fetchShopCatalog } from "@/lib/shop";
 import { fetchUserInventory } from "@/lib/inventory";
-import { InfoPage } from "@/components/InfoPage";
 import { ShopClient } from "@/components/shop/ShopClient";
 import type { Item } from "@/types";
 
 export const metadata: Metadata = {
-  title: "Shop",
-  description: "The LIFEFORGE emporium — spend hard-earned gold on real wares, sealed by the forge.",
+  title: "Market",
+  description: "The LIFEFORGE market — spend hard-earned CREDITS on real wares, sealed by the forge.",
 };
 
 export default async function ShopPage() {
@@ -36,17 +35,26 @@ export default async function ShopPage() {
   for (const row of invRes.items) owned[row.item_id] = row.quantity;
 
   return (
-    <InfoPage
-      eyebrow="Shop"
-      title={<>Spend your hard-earned gold</>}
-      lede="Every price is sealed in the forge — what you see is what the database charges. Buys land straight in your pack."
-    >
-      <ShopClient
-        initialCatalog={catalogRes.items as Item[]}
-        initialGold={profileRes.data.gold as number}
-        initialOwned={owned}
-        catalogError={catalogRes.error ?? invRes.error}
-      />
-    </InfoPage>
+    <div className="px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl">
+        <p className="kicker">Merchant quarter</p>
+        <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
+          <h1 className="text-5xl font-bold tracking-tight sm:text-6xl">MARKET</h1>
+          <p className="max-w-md text-muted-foreground">
+            Relics, tonics, and banners — every price sealed in the forge.
+            What you buy lands straight in your loadout.
+          </p>
+        </div>
+        <hr className="forge-divider mt-6" aria-hidden="true" />
+        <div className="mt-8">
+          <ShopClient
+            initialCatalog={catalogRes.items as Item[]}
+            initialGold={profileRes.data.gold as number}
+            initialOwned={owned}
+            catalogError={catalogRes.error ?? invRes.error}
+          />
+        </div>
+      </div>
+    </div>
   );
 }

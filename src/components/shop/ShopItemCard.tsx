@@ -10,18 +10,18 @@ export function clampQuantity(n: number): number {
   return Math.min(MAX_PURCHASE_QUANTITY, Math.max(1, Math.floor(n)));
 }
 
-function rarityBadge(rarity: string): { glyph: string; style: string } {
+function rarityBadge(rarity: string): { glyph: string; style: string; edge: string } {
   switch (rarity) {
     case "uncommon":
-      return { glyph: "◆", style: "border-green-500/40 bg-green-500/10 text-green-300" };
+      return { glyph: "◆", style: "text-green-300", edge: "border-l-green-500/60" };
     case "rare":
-      return { glyph: "★", style: "border-blue-500/40 bg-blue-500/10 text-blue-300" };
+      return { glyph: "★", style: "text-blue-300", edge: "border-l-blue-500/60" };
     case "epic":
-      return { glyph: "⬢", style: "border-purple-500/40 bg-purple-500/10 text-purple-300" };
+      return { glyph: "⬢", style: "text-purple-300", edge: "border-l-purple-500/60" };
     case "legendary":
-      return { glyph: "👑", style: "border-yellow-500/40 bg-yellow-500/10 text-yellow-300" };
+      return { glyph: "👑", style: "text-yellow-300", edge: "border-l-yellow-500/60" };
     default:
-      return { glyph: "●", style: "border-input bg-background/60 text-muted-foreground" };
+      return { glyph: "●", style: "text-muted-foreground", edge: "border-l-border" };
   }
 }
 
@@ -51,48 +51,38 @@ export function ShopItemCard({
   return (
     <article
       aria-labelledby={`shop-item-${item.id}`}
-      className="rounded-2xl border bg-card/60 p-5 shadow-lg transition-colors hover:border-primary/40 motion-reduce:transition-none"
+      className={cn(
+        "rounded-2xl border border-border/60 border-l-2 bg-card/40 p-5 pl-6 shadow-lg backdrop-blur-sm",
+        "transition-colors hover:border-primary/40 hover:bg-card/60 motion-reduce:transition-none",
+        badge.edge
+      )}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <span
-            aria-hidden="true"
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-3xl"
-          >
-            {item.icon}
-          </span>
-          <div className="min-w-0">
-            <h3 id={`shop-item-${item.id}`} className="font-bold leading-tight">
-              {item.name}
-            </h3>
-            <p className="text-xs text-muted-foreground capitalize">{item.item_type}</p>
-          </div>
+        <div className="min-w-0">
+          <p className={cn("kicker !text-[0.65rem]", badge.style)}>
+            <span aria-hidden="true">{badge.glyph} </span>
+            {item.rarity} · {item.item_type}
+          </p>
+          <h3 id={`shop-item-${item.id}`} className="mt-1 flex items-center gap-2 text-lg font-bold leading-tight">
+            <span aria-hidden="true" className="text-2xl">{item.icon}</span>
+            {item.name}
+          </h3>
         </div>
-        <span
-          className={cn(
-            "shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold capitalize",
-            badge.style
-          )}
-        >
-          <span aria-hidden="true">{badge.glyph} </span>
-          {item.rarity}
-        </span>
-      </div>
-
-      <p className="mt-3 text-sm text-muted-foreground">{item.description}</p>
-
-      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-        <p className="font-semibold text-primary" aria-label={`Price ${item.price} gold each`}>
-          <span aria-hidden="true">◉</span> {item.price} gold
-        </p>
-        <p className="text-muted-foreground" aria-live="polite">
-          {ownedQuantity > 0 ? (
-            <>Owned <span className="font-semibold text-foreground">×{ownedQuantity}</span></>
-          ) : (
-            <>Not yet owned</>
-          )}
+        <p className="shrink-0 text-right font-semibold text-primary" aria-label={`Price ${item.price} credits each`}>
+          <span aria-hidden="true">◉</span> {item.price}
+          <span className="block text-[0.65rem] font-semibold uppercase tracking-widest text-muted-foreground">Credits</span>
         </p>
       </div>
+
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.description}</p>
+
+      <p className="mt-2 text-sm text-muted-foreground" aria-live="polite">
+        {ownedQuantity > 0 ? (
+          <>Owned <span className="tabular font-semibold text-foreground">×{ownedQuantity}</span></>
+        ) : (
+          <>Not yet owned</>
+        )}
+      </p>
 
       <div className="mt-4 flex items-center gap-2">
         <span id={`qty-label-${item.id}`} className="text-sm text-muted-foreground">
@@ -128,7 +118,7 @@ export function ShopItemCard({
             +
           </button>
         </div>
-        <p className="ml-auto text-sm font-semibold" aria-label={`Estimated total ${displayTotal} gold`}>
+        <p className="ml-auto text-sm font-semibold" aria-label={`Estimated total ${displayTotal} credits`}>
           Total: <span className="text-primary">◉ {displayTotal}</span>
         </p>
       </div>
@@ -143,7 +133,7 @@ export function ShopItemCard({
         type="button"
         onClick={() => onPurchase(item.id)}
         disabled={purchasing}
-        aria-label={`Purchase ${quantity} ${item.name} for about ${displayTotal} gold`}
+        aria-label={`Purchase ${quantity} ${item.name} for about ${displayTotal} credits`}
         className={cn(
           "mt-3 w-full px-4 py-2.5 rounded-lg text-sm font-semibold",
           "bg-primary text-primary-foreground hover:bg-primary/90",

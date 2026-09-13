@@ -68,7 +68,7 @@ export function ShopClient({ initialCatalog, initialGold, initialOwned, catalogE
       ]);
       if (catalogRes.error) throw new Error(catalogRes.error);
       if (invRes.error) throw new Error(invRes.error);
-      if (profileRes.error || !profileRes.data) throw new Error(profileRes.error?.message ?? "Could not load your gold.");
+      if (profileRes.error || !profileRes.data) throw new Error(profileRes.error?.message ?? "Could not load your CREDITS.");
       setCatalog(catalogRes.items);
       setGold(profileRes.data.gold as number);
       const nextOwned: Record<string, number> = {};
@@ -105,7 +105,7 @@ export function ShopClient({ initialCatalog, initialGold, initialOwned, catalogE
       if (!row.success) {
         throw new Error(row.error_message ?? "Purchase failed.");
       }
-      // Authoritative values only — Gold and owned counts come from the server.
+      // Authoritative values only — CREDITS and owned counts come from the server.
       setGold(row.remaining_gold);
       setQuantities((prev) => ({ ...prev, [id]: 1 }));
       try {
@@ -121,7 +121,7 @@ export function ShopClient({ initialCatalog, initialGold, initialOwned, catalogE
       const item = catalog.find((c) => c.id === id);
       setConfirmation({ ...row, icon: item?.icon ?? "🎁" });
     } catch (err) {
-      // Gold and inventory state untouched — nothing was optimistically changed.
+      // CREDITS and inventory state untouched — nothing was optimistically changed.
       setCardErrors((prev) => ({
         ...prev,
         [id]: err instanceof Error ? err.message : "Purchase failed. Try again.",
@@ -135,35 +135,36 @@ export function ShopClient({ initialCatalog, initialGold, initialOwned, catalogE
 
   return (
     <div className="space-y-6">
-      <div
-        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-card/50 p-4 sm:p-5"
-        aria-live="polite"
-      >
-        <p className="text-lg font-bold" aria-label={`Your gold balance: ${gold} gold`}>
-          <span aria-hidden="true">◉</span> <span className="text-primary">{gold}</span>{" "}
-          <span className="text-sm font-medium text-muted-foreground">gold</span>
-        </p>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-end justify-between gap-4" aria-live="polite">
+        <div>
+          <p className="kicker">Your purse</p>
+          <p className="tabular mt-1 text-5xl font-bold tracking-tight" aria-label={`Your credits balance: ${gold} credits`}>
+            <span aria-hidden="true" className="text-primary">◉</span> {gold}
+          </p>
+          <p className="mt-1 text-sm font-semibold uppercase tracking-widest text-muted-foreground">CREDITS</p>
+        </div>
+        <div className="flex items-center gap-5 text-sm">
           <Link
             href="/inventory"
-            className="px-4 py-2 rounded-lg text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="font-medium text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
           >
-            View pack →
+            View loadout →
           </Link>
           <button
             type="button"
             onClick={refreshAll}
             disabled={refreshing}
             className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium border border-input bg-background hover:bg-accent",
+              "font-medium text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground",
               "disabled:opacity-50 disabled:cursor-not-allowed",
-              "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
             )}
           >
-            {refreshing ? "Checking…" : "Refresh"}
+            {refreshing ? "Counting…" : "Recount"}
           </button>
         </div>
       </div>
+      <hr className="forge-divider" aria-hidden="true" />
 
       {bannerError && (
         <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
@@ -244,11 +245,11 @@ export function ShopClient({ initialCatalog, initialGold, initialOwned, catalogE
             </p>
             <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
               <div className="rounded-xl border bg-background/50 p-3">
-                <dt className="text-muted-foreground">Gold spent</dt>
+                <dt className="text-muted-foreground">CREDITS spent</dt>
                 <dd className="font-bold text-yellow-300">◉ {confirmation.total_cost}</dd>
               </div>
               <div className="rounded-xl border bg-background/50 p-3">
-                <dt className="text-muted-foreground">Remaining</dt>
+                <dt className="text-muted-foreground">Remaining CREDITS</dt>
                 <dd className="font-bold">◉ {confirmation.remaining_gold}</dd>
               </div>
             </dl>
@@ -257,7 +258,7 @@ export function ShopClient({ initialCatalog, initialGold, initialOwned, catalogE
                 href="/inventory"
                 className="px-5 py-2.5 rounded-lg text-sm font-medium text-center border border-input hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                View pack
+                View loadout
               </Link>
               <button
                 type="button"
